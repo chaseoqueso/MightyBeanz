@@ -171,7 +171,8 @@ GameObject:
   - component: {fileID: 4793946638122036861}
   - component: {fileID: 4085600604524934058}
   - component: {fileID: 4793946638122036862}
-  m_Layer: 0
+  - component: {fileID: 5117869402495803006}
+  m_Layer: 3
   m_Name: Player
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -305,6 +306,29 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   footPoint: {fileID: 4793946637898603265}
   headPoint: {fileID: 4793946637065071969}
+  playerModel: {fileID: 4793946638070761100}
+  collisionLayers:
+    serializedVersion: 2
+    m_Bits: 64
+  moveSpeed: 3
+  moveAccel: 0.5
+  slopeLimit: 45
+  maxAngleDelta: 90
+  rollAnimPausePercent: 0.3
+--- !u!136 &5117869402495803006
+CapsuleCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4793946638122036863}
+  m_Material: {fileID: 0}
+  m_IsTrigger: 0
+  m_Enabled: 1
+  m_Radius: 0.5
+  m_Height: 1
+  m_Direction: 1
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &7768015774875375891
 GameObject:
   m_ObjectHideFlags: 0

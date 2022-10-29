@@ -192,7 +192,7 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 35889901}
-  m_LocalRotation: {x: 0.14317001, y: 0.16538563, z: -0.024273453, w: 0.9754798}
+  m_LocalRotation: {x: 0.14521311, y: 0.00013196676, z: -0.000019368606, w: 0.98940045}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -213,7 +213,7 @@ GameObject:
   - component: {fileID: 59384148}
   - component: {fileID: 59384147}
   - component: {fileID: 59384146}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Plane
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -368,7 +368,7 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 635163789}
-  m_LocalRotation: {x: 0.14317003, y: 0.16538565, z: -0.02427346, w: 0.9754798}
+  m_LocalRotation: {x: 0.14521314, y: 0.0001319373, z: -0.00001936428, w: 0.98940045}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -548,8 +548,8 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 963194225}
-  m_LocalRotation: {x: 0.14317007, y: 0.16538563, z: -0.024273464, w: 0.9754798}
-  m_LocalPosition: {x: -3.2961118, y: 3, z: -9.441168}
+  m_LocalRotation: {x: 0.14521317, y: 0.00013190783, z: -0.000019359963, w: 0.98940045}
+  m_LocalPosition: {x: -0.0026670154, y: 3.01, z: -10}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -852,7 +852,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1178921354}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -3.2961118, y: 3, z: -9.441168}
+  m_LocalPosition: {x: -0.0026670154, y: 3.01, z: -10}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -1105,7 +1105,7 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1634121839}
-  m_LocalRotation: {x: 0.09715121, y: 0.16634396, z: -0.016471297, w: 0.98113203}
+  m_LocalRotation: {x: 0.09853761, y: 0.00013269753, z: -0.000013139643, w: 0.99513334}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -1248,6 +1248,18 @@ PrefabInstance:
   m_Modification:
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 4793946637065071970, guid: 31b42468548cbef4b823043d12060101, type: 3}
+      propertyPath: m_Layer
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 4793946637898603266, guid: 31b42468548cbef4b823043d12060101, type: 3}
+      propertyPath: m_Layer
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 4793946638070761101, guid: 31b42468548cbef4b823043d12060101, type: 3}
+      propertyPath: m_Layer
+      value: 3
+      objectReference: {fileID: 0}
     - target: {fileID: 4793946638122036861, guid: 31b42468548cbef4b823043d12060101, type: 3}
       propertyPath: m_RootOrder
       value: 5
@@ -1258,7 +1270,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4793946638122036861, guid: 31b42468548cbef4b823043d12060101, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 1
+      value: 1.01
       objectReference: {fileID: 0}
     - target: {fileID: 4793946638122036861, guid: 31b42468548cbef4b823043d12060101, type: 3}
       propertyPath: m_LocalPosition.z
@@ -1292,9 +1304,25 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 4793946638122036862, guid: 31b42468548cbef4b823043d12060101, type: 3}
+      propertyPath: hoverHeight
+      value: 0.02
+      objectReference: {fileID: 0}
+    - target: {fileID: 4793946638122036862, guid: 31b42468548cbef4b823043d12060101, type: 3}
+      propertyPath: groundLayers.m_Bits
+      value: 64
+      objectReference: {fileID: 0}
+    - target: {fileID: 4793946638122036862, guid: 31b42468548cbef4b823043d12060101, type: 3}
+      propertyPath: rollAnimPausePercent
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 4793946638122036863, guid: 31b42468548cbef4b823043d12060101, type: 3}
       propertyPath: m_Name
       value: Player
+      objectReference: {fileID: 0}
+    - target: {fileID: 7768015774875375891, guid: 31b42468548cbef4b823043d12060101, type: 3}
+      propertyPath: m_Layer
+      value: 3
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 31b42468548cbef4b823043d12060101, type: 3}

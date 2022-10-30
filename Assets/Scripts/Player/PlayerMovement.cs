@@ -64,7 +64,9 @@ public class PlayerMovement : MonoBehaviour
 
     // Movement properties
     private Vector3 rollDirection;          // The world space direction to roll towards
-    private Transform pivotPoint;           // Whether to pivot around the feet point or the head point
+    private Transform pivotPoint;           // The current point we are pivoting around
+    private Transform otherPivot;           // The pivot point we are not currently pivoting around
+    private Transform tempPivot;            // If necessary, we can create a temporary pivot for moving over certain objects
     private float currentMoveSpeed;         // The current speed in rolls/second
     private float currentAngularAccel;      // The current angular acceleration in degrees/sec^2
     private float currentAngularVelocity;   // The current angular speed in degrees/second
@@ -73,6 +75,7 @@ public class PlayerMovement : MonoBehaviour
     private PlayerState currentState;
     private bool isOnFeet;
     private bool isAnimPause;
+    private bool animRising;
 
     /// <summary> Gets the position of the player accounting for weird movement stuff </summary>
     public Vector3 GetStablePosition()
@@ -120,13 +123,23 @@ public class PlayerMovement : MonoBehaviour
             if(rollDirection == Vector3.zero)
             {
                 rollDirection = CalculateMoveDirection();           // Get the direction to roll
+                animRising = false;
                 StartRoll();
             }
 
             // TODO anim pausing
 
+            // Get the local up vector for use throughout the method
+            Vector3 localUp = otherPivot.position - pivotPoint.position;
+
+            if(localUp == Vector3.up)
+            {
+                animRising = false;
+            }
+
             // The amount to rotate in the roll direction based on current speed
-            Quaternion stepRotation = Quaternion.RotateTowards(Quaternion.identity, Quaternion.FromToRotation(Vector3.up, rollDirection), currentAngularVelocity * Time.fixedDeltaTime);
+            Quaternion destRotation = animRising ? Quaternion.FromToRotation(localUp, Vector3.up) : Quaternion.FromToRotation(Vector3.up, rollDirection);
+            Quaternion stepRotation = Quaternion.RotateTowards(Quaternion.identity, destRotation, currentAngularVelocity * Time.fixedDeltaTime);
 
             currentAngularVelocity += currentAngularAccel * Time.fixedDeltaTime;  // Accelerate the angular velocity
 
@@ -142,7 +155,6 @@ public class PlayerMovement : MonoBehaviour
             CollisionHit collision = CalculateCollision(lastTransform, nextTransform);
             if(collision.collider != null)
             {
-                Debug.Log("Collision");
                 // Start by setting our position and rotation to the calculated position and rotation at the time of the collision
                 transform.position = collision.transform.position;
                 transform.rotation = collision.transform.rotation;
@@ -155,10 +167,9 @@ public class PlayerMovement : MonoBehaviour
                 // 3. NOT at the other pivot, AND NOT within the step limit, AND below the halfway point, THEN create a new pivot and keep rolling
                 // 4. None of the above, THEN come to a stop
 
-                Transform otherPivot = isOnFeet ? headPoint : footPoint;        // Get the pivot opposite the one we're using
 
-                Vector3 localRightVector = Vector3.Cross(lastTransform.rotation * Vector3.up, nextTransform.rotation * Vector3.up).normalized;
-                Vector3 pivotForwardVector = Vector3.Cross(localRightVector, otherPivot.position - pivotPoint.position).normalized;
+                Vector3 localRightVector = Vector3.Cross(localUp, stepRotation * localUp).normalized;
+                Vector3 pivotForwardVector = Vector3.Cross(localRightVector, localUp).normalized;
 
                 RaycastHit pivotHit;
                 if(Physics.SphereCast(otherPivot.position, 
@@ -169,27 +180,22 @@ public class PlayerMovement : MonoBehaviour
                                       collisionLayers))                         // Check if hit point is in range of opposite pivot 
                 {
                     Vector3 pivotToHit = pivotHit.point - otherPivot.position;  // Calculate the vector from the opposite pivot toward the collider we hit
-                
-                    Debug.Log("Pivot");
-                    Debug.Log(Vector3.Dot(pivotToHit, Vector3.Cross(rollDirection, Vector3.up)));
-                    Debug.Log(Vector3.Angle(rollDirection, transform.up * (isOnFeet ? 1 : -1)));
 
                     // Check case 1
                     if(Vector3.Dot(pivotToHit, Vector3.Cross(rollDirection, Vector3.up)) < 0.01f &&     // If hit point is coplanar with the bean's forward motion & world up vector
-                       Vector3.Angle(rollDirection, transform.up * (isOnFeet ? 1 : -1)) <= slopeLimit)  // AND the bean is within the slope limit
+                       Vector3.Angle(rollDirection, localUp) <= slopeLimit)  // AND the bean is within the slope limit
                     {
-                        Debug.Log("Flip");
-
                         isOnFeet = !isOnFeet;
 
                         rollDirection = Vector3.RotateTowards(rollDirection, CalculateMoveDirection(), maxAngleDelta * Mathf.Deg2Rad / currentMoveSpeed, 0);
 
                         StartRoll();
+                        animRising = true;
                     }
                 }
                 else // Check case 2 & 3
                 {
-
+                    
                 }
 
 
@@ -198,24 +204,36 @@ public class PlayerMovement : MonoBehaviour
         }
 
         // Ground check
-        if(Physics.CheckSphere(pivotPoint.position - (Vector3.up * groundCheckDistance), 
-                               collider.radius, 
-                               groundLayers))
+        RaycastHit[] hits = Physics.SphereCastAll(pivotPoint.position + Vector3.up * collider.radius, 
+                                                  collider.radius,
+                                                  Vector3.down,
+                                                  (collider.radius * 2) + groundCheckDistance, 
+                                                  groundLayers);
+        if(hits.Length > 0)
         {
-            // Check if the player is steady on the ground or is only partially on the ground
-            RaycastHit hit;
-            if(Physics.Raycast(pivotPoint.position,
-                               Vector3.down,
-                               out hit,
-                               collider.radius + groundCheckDistance,
-                               groundLayers))
+            foreach(RaycastHit hit in hits)
             {
-                float groundDistance = hit.distance - collider.radius;              // Subtract the portion of the ray that is inside the capsule
-                transform.position += Vector3.up * (hoverHeight - groundDistance);  // Hover the player slightly above the ground
-            }
-            else
-            {
-                // TODO deal with sliding
+                Vector3 pivotToHit = hit.point - pivotPoint.position;
+                // If the thing we hit was within the slope limit and distance
+                if(Vector3.Angle(pivotToHit, Vector3.down) < slopeLimit &&
+                   pivotToHit.magnitude < collider.radius + groundCheckDistance)
+                {
+                    // Check if the player is steady on the ground or is only partially on the ground
+                    RaycastHit specificHit;
+                    if(Physics.Raycast(pivotPoint.position,
+                                    pivotToHit,
+                                    out specificHit,
+                                    collider.radius + groundCheckDistance,
+                                    groundLayers))
+                    {
+                        float groundDistance = specificHit.distance - collider.radius;      // Subtract the portion of the ray that is inside the capsule
+                        transform.position += Vector3.up * (hoverHeight - groundDistance);  // Hover the player slightly above the ground
+                    }
+                    else
+                    {
+                        // TODO deal with sliding
+                    }
+                }
             }
         }
             
@@ -241,7 +259,7 @@ public class PlayerMovement : MonoBehaviour
             float testContactTime = contactTime + Mathf.Pow(0.5f, 2 * i);
 
             testCenter = Vector3.Lerp(initial.position, final.position, testContactTime);
-            testRotation = Quaternion.Lerp(initial.rotation, final.rotation, testContactTime);
+            testRotation = Quaternion.Slerp(initial.rotation, final.rotation, testContactTime);
             Collider[] hits = Physics.OverlapCapsule(testCenter + testRotation * capsulePointOffset,
                                                      testCenter + testRotation * -capsulePointOffset,
                                                      collider.radius,
@@ -329,6 +347,7 @@ public class PlayerMovement : MonoBehaviour
             currentMoveSpeed = moveSpeed;
 
         pivotPoint = isOnFeet ? footPoint : headPoint;  // Figure out if we're on our feet or our head
+        otherPivot = isOnFeet ? headPoint : footPoint;
 
         // The angular acceleration determines the cadence of the animation, and will be constant for the duration of the roll
         // It is calculated using calc and physics and stuff

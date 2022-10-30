@@ -310,11 +310,21 @@ MonoBehaviour:
   collisionLayers:
     serializedVersion: 2
     m_Bits: 64
-  moveSpeed: 3
+  moveSpeed: 2
   moveAccel: 0.5
+  startMoveSpeed: 1
   slopeLimit: 45
   maxAngleDelta: 90
   rollAnimPausePercent: 0.3
+  groundCheckDistance: 0.05
+  groundLayers:
+    serializedVersion: 2
+    m_Bits: 64
+  hoverHeight: 0.01
+  gravityAccel: 20
+  maxJumpHeight: 5
+  minJumpHeight: 2
+  perfectJumpMultiplier: 1.5
 --- !u!136 &5117869402495803006
 CapsuleCollider:
   m_ObjectHideFlags: 0

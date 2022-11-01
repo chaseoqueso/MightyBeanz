@@ -135,126 +135,139 @@ public class PlayerMovement : MonoBehaviour
                 StartRoll();
             }
 
-            // TODO anim pausing
+            TransformAndTime mostRecentTransform = lastTransform;
 
-            // Get the local up vector for use throughout the method
-            Vector3 localUp = otherPivot.position - pivotPoint.position;
-
-            if(localUp == Vector3.up)
+            // Progress through the frame, potentially calculating multiple movements if multiple collisions occur
+            float timeRemainingThisFrame = Time.fixedDeltaTime;
+            int attempts = 0;
+            while(timeRemainingThisFrame > 0 && attempts < 10)
             {
-                animRising = false;
-            }
+                attempts++;
 
-            // The amount to rotate in the roll direction based on current speed
-            Quaternion destRotation = animRising ? Quaternion.FromToRotation(localUp, Vector3.up) : Quaternion.FromToRotation(Vector3.up, rollDirection);
-            Quaternion stepRotation = Quaternion.RotateTowards(Quaternion.identity, destRotation, currentAngularVelocity * Time.fixedDeltaTime);
+                // Get the local up vector for use throughout the method
+                Vector3 localUp = otherPivot.position - pivotPoint.position;
+                if(localUp == Vector3.up)
+                {
+                    animRising = false;
+                }
+
+                // The amount to rotate in the roll direction based on current speed
+                Quaternion destRotation = animRising ? Quaternion.FromToRotation(localUp, Vector3.up) : Quaternion.FromToRotation(Vector3.up, rollDirection);
+                Quaternion stepRotation = Quaternion.RotateTowards(Quaternion.identity, destRotation, currentAngularVelocity * timeRemainingThisFrame);
+
+                // If there's a tempPivot, use that. Otherwise, use the normal pivot point
+                Transform pivotToUse = tempPivot;
+                if(pivotToUse == null)
+                    pivotToUse = pivotPoint;
+
+                // Rotate the bean and correct the position with pivot offset
+                Vector3 lastPosition = pivotToUse.position;
+                transform.rotation = stepRotation * transform.rotation;
+                transform.position += lastPosition - pivotToUse.position;
+                // TODO account for forward roll using arc length
+                // TODO anim pausing
+
+                // Store the calculated position and clear remaining time
+                nextTransform = new TransformAndTime(Time.fixedTime + Time.fixedDeltaTime, transform);
+                timeRemainingThisFrame = 0;
+                
+                // If the player cannot move into the specified position
+                CollisionHit collision = CalculateCollision(mostRecentTransform, nextTransform);
+                if(collision.collider != null)
+                {
+                    Debug.Log("Collision");
+                    timeRemainingThisFrame = collision.transform.time - Time.fixedTime;
+                    Debug.Log(timeRemainingThisFrame);
+                    
+                    // Start by setting our position and rotation to the calculated position and rotation at the time of the collision
+                    transform.position = collision.transform.position;
+                    transform.rotation = collision.transform.rotation;
+
+                    // If the point we hit is:
+                    // 1. At the other pivot, AND below the pivot, AND within slope limit, THEN switch the pivots
+                    // 2. NOT at the other pivot, AND within the step limit, THEN create a new pivot and keep rolling
+                    // 3. NOT at the other pivot, AND NOT within the step limit, AND below the halfway point, THEN create a new pivot and keep rolling
+                    // 4. None of the above, THEN come to a stop
+
+                    Vector3 localRightVector = Vector3.Cross(localUp, stepRotation * localUp).normalized;
+                    Vector3 pivotForwardVector = Vector3.Cross(localRightVector, localUp).normalized;
+
+                    RaycastHit pivotHit;
+                    if(Physics.SphereCast(otherPivot.position, 
+                                        collider.radius * 0.99f, 
+                                        pivotForwardVector,
+                                        out pivotHit,
+                                        groundCheckDistance,
+                                        groundLayers))                            // Check if hit point is in range of opposite pivot 
+                    {
+                        Vector3 pivotToHit = pivotHit.point - otherPivot.position;  // Calculate the vector from the opposite pivot toward the collider we hit
+                        
+                        Debug.Log("Pivot");
+                        Debug.Log(Vector3.Angle(pivotToHit, Vector3.down));
+                        Debug.Log(Vector3.Angle(rollDirection, localUp));
+
+                        // Check case 1
+                        if(Vector3.Angle(pivotToHit, Vector3.down) < slopeLimit &&  // If hit point is below the bean
+                           Vector3.Angle(rollDirection, localUp) <= slopeLimit)     // AND the bean is within the slope limit
+                        {
+                            Debug.Log("Flip");
+                            StartRoll();
+                        }
+                    }
+                    else if(Physics.CapsuleCast(pivotPoint.position,
+                                                otherPivot.position, 
+                                                collider.radius * 0.99f, 
+                                                pivotForwardVector,
+                                                out pivotHit,
+                                                groundCheckDistance,
+                                                groundLayers))
+                    {
+                        Vector3 centerToCollision = pivotHit.point - transform.position;
+                        Vector3 pivotToCollision = pivotHit.point - pivotPoint.position;
+
+                        Debug.Log("TempPivot");
+                        Debug.Log(Vector3.Distance(pivotHit.point, pivotPoint.position));
+                        Debug.Log(pivotHit.point.y - pivotPoint.position.y);
+                        Debug.Log(Vector3.Dot(centerToCollision, localUp));
+
+                        // Check case 2 & 3
+                        if(Vector3.Dot(pivotToCollision, localUp) > 0 &&                // If the point we hit is NOT near our current pivot
+                        (pivotHit.point.y - pivotPoint.position.y <= stepLimit ||    // and the point we hit is either a small enough step
+                        Vector3.Dot(centerToCollision, localUp) <= 0))               // or at the lower half of the player
+                        {
+                            // If there is a temporary pivot point, clean it up
+                            if(tempPivot != null)
+                            {
+                                Destroy(tempPivot.gameObject);
+                                tempPivot = null;
+                            }
+
+                            // Create a pivot at the collision point as a child of the player
+                            tempPivot = new GameObject("TempPivot").transform;
+                            tempPivot.position = pivotHit.point;
+                            tempPivot.parent = transform;
+
+                            // Recalculate the camera prediction
+                            CalculateRollPrediction();
+
+                            Debug.Log("NewPivot");
+                        }
+                    }
+
+                    mostRecentTransform = collision.transform;
+                }
+        
+                // Check for ground and if any is found, lock our bean at hover height
+                RaycastHit? groundHit = GroundCheck();
+                if(groundHit.HasValue)
+                {
+                    Debug.Log("Grounded");
+                    float groundDistance = groundHit.Value.distance - collider.radius;
+                    transform.position += Vector3.up * (hoverHeight - groundDistance);  // Hover the player slightly above the ground
+                }
+            }
 
             currentAngularVelocity += currentAngularAccel * Time.fixedDeltaTime;  // Accelerate the angular velocity
-
-            // If there's a tempPivot, use that. Otherwise, use the normal pivot point
-            Transform pivotToUse = tempPivot;
-            if(pivotToUse == null)
-                pivotToUse = pivotPoint;
-
-            // Rotate the bean and correct the position with pivot offset
-            Vector3 lastPosition = pivotToUse.position;
-            transform.rotation = stepRotation * transform.rotation;
-            transform.position += lastPosition - pivotToUse.position;
-            // TODO account for forward roll using arc length
-
-            nextTransform = new TransformAndTime(Time.fixedTime + Time.fixedDeltaTime, transform);
-            
-            // If the player cannot move into the specified position
-            CollisionHit collision = CalculateCollision(lastTransform, nextTransform);
-            if(collision.collider != null)
-            {
-                Debug.Log("Collision");
-                
-                // Start by setting our position and rotation to the calculated position and rotation at the time of the collision
-                transform.position = collision.transform.position;
-                transform.rotation = collision.transform.rotation;
-
-                // Calculate the vector from the opposite pivot to the point of contact
-
-                // If the point we hit is:
-                // 1. At the other pivot, AND below the pivot, AND within slope limit, THEN switch the pivots
-                // 2. NOT at the other pivot, AND within the step limit, THEN create a new pivot and keep rolling
-                // 3. NOT at the other pivot, AND NOT within the step limit, AND below the halfway point, THEN create a new pivot and keep rolling
-                // 4. None of the above, THEN come to a stop
-
-
-                Vector3 localRightVector = Vector3.Cross(localUp, stepRotation * localUp).normalized;
-                Vector3 pivotForwardVector = Vector3.Cross(localRightVector, localUp).normalized;
-
-                RaycastHit pivotHit;
-                if(Physics.SphereCast(otherPivot.position, 
-                                      collider.radius * 0.99f, 
-                                      pivotForwardVector,
-                                      out pivotHit,
-                                      groundCheckDistance,
-                                      groundLayers))                            // Check if hit point is in range of opposite pivot 
-                {
-                    Vector3 pivotToHit = pivotHit.point - otherPivot.position;  // Calculate the vector from the opposite pivot toward the collider we hit
-                    
-                    Debug.Log("Pivot");
-                    Debug.Log(Vector3.Angle(pivotToHit, Vector3.down) < slopeLimit);
-                    Debug.Log(Vector3.Angle(rollDirection, localUp));
-
-                    // Check case 1
-                    if(Vector3.Angle(pivotToHit, Vector3.down) < slopeLimit &&  // If hit point is below the bean
-                       Vector3.Angle(rollDirection, localUp) <= slopeLimit)     // AND the bean is within the slope limit
-                    {
-                        Debug.Log("Flip");
-                        StartRoll();
-                    }
-                }
-                else if(Physics.CapsuleCast(pivotPoint.position,
-                                            otherPivot.position, 
-                                            collider.radius * 0.99f, 
-                                            pivotForwardVector,
-                                            out pivotHit,
-                                            groundCheckDistance,
-                                            groundLayers))
-                {
-                    Vector3 centerToCollision = pivotHit.point - transform.position;
-                    Vector3 pivotToCollision = pivotHit.point - pivotPoint.position;
-
-                    Debug.Log("TempPivot");
-                    Debug.Log(Vector3.Distance(pivotHit.point, pivotPoint.position));
-                    Debug.Log(pivotHit.point.y - pivotPoint.position.y);
-                    Debug.Log(Vector3.Dot(centerToCollision, localUp));
-
-                    // Check case 2 & 3
-                    if(Vector3.Dot(pivotToCollision, localUp) > 0 &&                // If the point we hit is NOT near our current pivot
-                       (pivotHit.point.y - pivotPoint.position.y <= stepLimit ||    // and the point we hit is either a small enough step
-                       Vector3.Dot(centerToCollision, localUp) <= 0))               // or at the lower half of the player
-                    {
-                        // If there is a temporary pivot point, clean it up
-                        if(tempPivot != null)
-                        {
-                            Destroy(tempPivot.gameObject);
-                            tempPivot = null;
-                        }
-
-                        tempPivot = new GameObject("TempPivot").transform;
-                        tempPivot.position = pivotHit.point;
-                        tempPivot.parent = transform;
-
-                        Debug.Log("NewPivot");
-                    }
-                }
-
-
-                // TODO Perform post-collision partial frame movement
-            }
-        }
-        
-        // Check for ground and if any is found, lock our bean at hover height
-        RaycastHit? groundHit = GroundCheck();
-        if(groundHit.HasValue)
-        {
-            float groundDistance = groundHit.Value.distance - collider.radius;
-            transform.position += Vector3.up * (hoverHeight - groundDistance);  // Hover the player slightly above the ground
         }
             
         nextTransform = new TransformAndTime(Time.fixedTime + Time.fixedDeltaTime, transform);
@@ -314,32 +327,31 @@ public class PlayerMovement : MonoBehaviour
         // The optimal RaycastHit to return
         RaycastHit? closestValid = null;
 
-        // Check all colliders for anything valid
-        RaycastHit[] hits;
-        
+        // Calculate the origin based on the current pivot
+        Vector3 raycastOrigin;
         if(hasTempPivot)
         {
-            // If there is a temp pivot, check below that pivot
-            hits = Physics.RaycastAll(tempPivot.position + Vector3.up * collider.radius, 
-                                      Vector3.down,
-                                      collider.radius + groundCheckDistance, 
-                                      groundLayers);
+            raycastOrigin = tempPivot.position + Vector3.up * collider.radius;
         }
         else
         {
-            // If there is no temp pivot, sphereCast near the pivot
-            hits = Physics.SphereCastAll(pivotPoint.position + Vector3.up * collider.radius, 
-                                         collider.radius,
-                                         Vector3.down,
-                                         (collider.radius * 2) + groundCheckDistance, 
-                                         groundLayers);
+            raycastOrigin = pivotPoint.position + Vector3.up * collider.radius;
         }
+
+        // Check all colliders for anything valid
+        RaycastHit[] hits;
+        hits = Physics.SphereCastAll(raycastOrigin, 
+                                     collider.radius,
+                                     Vector3.down,
+                                     (collider.radius * 2) + groundCheckDistance, 
+                                     groundLayers);
 
         // If anything was hit, find the raycast info of the point we hit
         if(hits.Length > 0)
         {
             foreach(RaycastHit hit in hits)
             {
+                Debug.Log("General Ground Hit");
                 // Get the vector from the pivot point to the collision point
                 Vector3 pivotToHit;
                 if(hasTempPivot)
@@ -351,25 +363,9 @@ public class PlayerMovement : MonoBehaviour
                 if(Vector3.Angle(pivotToHit, Vector3.down) < slopeLimit &&
                    pivotToHit.magnitude < collider.radius + groundCheckDistance)
                 {
-                    // Get the position to raycast from
-                    Vector3 raycastOrigin;
-                    if(hasTempPivot)
-                        raycastOrigin = tempPivot.position + Vector3.up * collider.radius;
-                    else
-                        raycastOrigin = pivotPoint.position;
-
-                    // Get more accurate raycast info
-                    RaycastHit specificHit;
-                    if(Physics.Raycast(raycastOrigin,
-                                       pivotToHit,
-                                       out specificHit,
-                                       collider.radius + groundCheckDistance,
-                                       groundLayers))
-                    {
-                        // If closestValid hasn't been assigned yet or specificHit is closer to the pivot point, assign closestValid to specificHit
-                        if(!closestValid.HasValue || specificHit.distance < closestValid.Value.distance)
-                            closestValid = specificHit;
-                    }
+                    // If closestValid hasn't been assigned yet or specificHit is closer to the pivot point, assign closestValid to specificHit
+                    if(!closestValid.HasValue || hit.distance < closestValid.Value.distance)
+                        closestValid = hit;
                 }
             }
         }

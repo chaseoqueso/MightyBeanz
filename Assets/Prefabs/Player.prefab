@@ -314,6 +314,7 @@ MonoBehaviour:
   moveAccel: 1
   startMoveSpeed: 3
   slopeLimit: 45
+  stepLimit: 0.5
   maxAngleDelta: 90
   rollAnimPausePercent: 0.3
   groundCheckDistance: 0.05

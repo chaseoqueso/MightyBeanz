@@ -310,9 +310,9 @@ MonoBehaviour:
   collisionLayers:
     serializedVersion: 2
     m_Bits: 64
-  moveSpeed: 2
-  moveAccel: 0.5
-  startMoveSpeed: 1
+  moveSpeed: 6
+  moveAccel: 1
+  startMoveSpeed: 3
   slopeLimit: 45
   maxAngleDelta: 90
   rollAnimPausePercent: 0.3

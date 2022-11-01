@@ -15,6 +15,6 @@ public class PlayerCameraFollow : MonoBehaviour
 
     void Update()
     {
-        transform.position = player.GetStablePosition();
+        transform.position = Vector3.Lerp(transform.position, player.GetStablePosition(), 0.5f);
     }
 }

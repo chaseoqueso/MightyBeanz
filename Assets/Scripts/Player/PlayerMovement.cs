@@ -14,6 +14,8 @@ public enum PlayerState
 [RequireComponent(typeof(PlayerInput))]
 public class PlayerMovement : MonoBehaviour
 {
+    private const int maxPhysicsAttempts = 10;
+
     [Header("General")]
     [Tooltip("The point at the center of the capsule's lower hemisphere.")]
     public Transform footPoint;
@@ -140,7 +142,7 @@ public class PlayerMovement : MonoBehaviour
             // Progress through the frame, potentially calculating multiple movements if multiple collisions occur
             float timeRemainingThisFrame = Time.fixedDeltaTime;
             int attempts = 0;
-            while(timeRemainingThisFrame > 0 && attempts < 10)
+            while(timeRemainingThisFrame > 0 && attempts < maxPhysicsAttempts)
             {
                 attempts++;
 
@@ -175,9 +177,9 @@ public class PlayerMovement : MonoBehaviour
                 CollisionHit collision = CalculateCollision(mostRecentTransform, nextTransform);
                 if(collision.collider != null)
                 {
-                    Debug.Log("Collision");
                     timeRemainingThisFrame = collision.transform.time - Time.fixedTime;
-                    Debug.Log(timeRemainingThisFrame);
+                    // Debug.Log("Collision");
+                    // Debug.Log(timeRemainingThisFrame);
                     
                     // Start by setting our position and rotation to the calculated position and rotation at the time of the collision
                     transform.position = collision.transform.position;
@@ -202,15 +204,15 @@ public class PlayerMovement : MonoBehaviour
                     {
                         Vector3 pivotToHit = pivotHit.point - otherPivot.position;  // Calculate the vector from the opposite pivot toward the collider we hit
                         
-                        Debug.Log("Pivot");
-                        Debug.Log(Vector3.Angle(pivotToHit, Vector3.down));
-                        Debug.Log(Vector3.Angle(rollDirection, localUp));
+                        // Debug.Log("Pivot");
+                        // Debug.Log(Vector3.Angle(pivotToHit, Vector3.down));
+                        // Debug.Log(Vector3.Angle(rollDirection, localUp));
 
                         // Check case 1
                         if(Vector3.Angle(pivotToHit, Vector3.down) < slopeLimit &&  // If hit point is below the bean
                            Vector3.Angle(rollDirection, localUp) <= slopeLimit)     // AND the bean is within the slope limit
                         {
-                            Debug.Log("Flip");
+                            // Debug.Log("Flip");
                             StartRoll();
                         }
                     }
@@ -225,15 +227,15 @@ public class PlayerMovement : MonoBehaviour
                         Vector3 centerToCollision = pivotHit.point - transform.position;
                         Vector3 pivotToCollision = pivotHit.point - pivotPoint.position;
 
-                        Debug.Log("TempPivot");
-                        Debug.Log(Vector3.Distance(pivotHit.point, pivotPoint.position));
-                        Debug.Log(pivotHit.point.y - pivotPoint.position.y);
-                        Debug.Log(Vector3.Dot(centerToCollision, localUp));
+                        // Debug.Log("TempPivot");
+                        // Debug.Log(Vector3.Distance(pivotHit.point, pivotPoint.position));
+                        // Debug.Log(pivotHit.point.y - pivotPoint.position.y);
+                        // Debug.Log(Vector3.Dot(centerToCollision, localUp));
 
                         // Check case 2 & 3
                         if(Vector3.Dot(pivotToCollision, localUp) > 0 &&                // If the point we hit is NOT near our current pivot
-                        (pivotHit.point.y - pivotPoint.position.y <= stepLimit ||    // and the point we hit is either a small enough step
-                        Vector3.Dot(centerToCollision, localUp) <= 0))               // or at the lower half of the player
+                           (pivotHit.point.y - pivotPoint.position.y <= stepLimit ||    // and the point we hit is either a small enough step
+                           Vector3.Dot(centerToCollision, localUp) <= 0))               // or at the lower half of the player
                         {
                             // If there is a temporary pivot point, clean it up
                             if(tempPivot != null)
@@ -250,8 +252,12 @@ public class PlayerMovement : MonoBehaviour
                             // Recalculate the camera prediction
                             CalculateRollPrediction();
 
-                            Debug.Log("NewPivot");
+                            // Debug.Log("NewPivot");
                         }
+                    }
+                    else
+                    {
+                        // TODO wall collision
                     }
 
                     mostRecentTransform = collision.transform;
@@ -261,11 +267,18 @@ public class PlayerMovement : MonoBehaviour
                 RaycastHit? groundHit = GroundCheck();
                 if(groundHit.HasValue)
                 {
-                    Debug.Log("Grounded");
+                    // Debug.Log("Grounded");
                     float groundDistance = groundHit.Value.distance - collider.radius;
                     transform.position += Vector3.up * (hoverHeight - groundDistance);  // Hover the player slightly above the ground
                 }
+                else
+                {
+                    // TODO deal with sliding off and falling
+                }
             }
+
+            if(attempts == maxPhysicsAttempts)
+                Debug.LogWarning("Maxed out number of physics attempts");
 
             currentAngularVelocity += currentAngularAccel * Time.fixedDeltaTime;  // Accelerate the angular velocity
         }
@@ -351,7 +364,6 @@ public class PlayerMovement : MonoBehaviour
         {
             foreach(RaycastHit hit in hits)
             {
-                Debug.Log("General Ground Hit");
                 // Get the vector from the pivot point to the collision point
                 Vector3 pivotToHit;
                 if(hasTempPivot)
